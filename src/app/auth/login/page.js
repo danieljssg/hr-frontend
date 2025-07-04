@@ -1,10 +1,10 @@
-// app/auth/login/page.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
+import { loginAction } from "@/actions/auth/login";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,10 +23,12 @@ export default function SignInPage() {
   const router = useRouter();
   const { login, user } = useAuth();
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [state, formAction, pending] = useActionState(loginAction, {
+    success: false,
+    error: null,
+    user: null,
+    message: null,
+  });
 
   useEffect(() => {
     if (user) {
@@ -34,53 +36,14 @@ export default function SignInPage() {
     }
   }, [user, router]);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    if (!username || !password) {
-      setError("Usuario y contraseña son requeridos.");
-      setLoading(false);
-      return;
+  useEffect(() => {
+    if (state.success) {
+      login(state.user);
+      router.push("/dashboard");
     }
+  }, [state, login, router]);
 
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_URL;
-      const response = await fetch(`${baseUrl}/api/auth/signin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password }),
-        credentials: "include",
-      });
-
-      console.log(await response.headers);
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Error al iniciar sesión.");
-        setLoading(false);
-        return;
-      }
-
-      if (data.user) {
-        login(data.user);
-        router.push("/dashboard");
-      } else {
-        setError("Datos de usuario incompletos recibidos.");
-      }
-    } catch (err) {
-      console.error("Error de conexión durante el login:", err);
-      setError("Error de conexión. Intenta nuevamente.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = () => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_URL;
     const frontendCallbackUrl = `${window.location.origin}/auth/callback`;
 
@@ -92,6 +55,7 @@ export default function SignInPage() {
   if (user) {
     return null;
   }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
@@ -104,10 +68,7 @@ export default function SignInPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form
-            onSubmit={async (e) => await handleLogin(e)}
-            className="space-y-4"
-          >
+          <form action={formAction} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Usuario</Label>
               <Input
@@ -116,8 +77,7 @@ export default function SignInPage() {
                 type="text"
                 placeholder="username"
                 required
-                disabled={loading}
-                onChange={(e) => setUsername(e.target.value)}
+                disabled={pending}
               />
             </div>
             <div className="space-y-2">
@@ -128,17 +88,16 @@ export default function SignInPage() {
                 type="password"
                 placeholder="••••••••"
                 required
-                disabled={loading}
-                onChange={(e) => setPassword(e.target.value)}
+                disabled={pending}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+            <Button type="submit" className="w-full" disabled={pending}>
+              {pending ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
-          {error && (
+          {state.error && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           )}
           <Separator />
@@ -146,8 +105,8 @@ export default function SignInPage() {
           <Button
             variant="outline"
             className="w-full bg-transparent"
-            onClick={async () => await handleGoogleLogin()}
-            disabled={loading}
+            onClick={handleGoogleLogin}
+            disabled={pending}
           >
             <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
               <path

@@ -1,17 +1,19 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
+import { logoutAction } from "@/actions/auth/logout";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     if (typeof window !== "undefined") {
-      const userDataString = localStorage.getItem("user");
       try {
-        return userDataString ? JSON.parse(userDataString) : null;
+        const storedUser = localStorage.getItem("user");
+        return storedUser ? JSON.parse(storedUser) : null;
       } catch (e) {
         console.error("Error al parsear userData de localStorage:", e);
+        localStorage.removeItem("user");
         return null;
       }
     }
@@ -21,37 +23,29 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
 
   const login = (userData) => {
-    localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
   };
 
   const logout = async () => {
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_URL;
+    setUser(null);
+    localStorage.removeItem("user");
 
-      const response = await fetch(`${baseUrl}/api/auth/signout`, {
-        method: "GET",
-        credentials: "include",
-      });
-      console.log(response);
+    try {
+      await logoutAction();
     } catch (error) {
-      console.error("Error during logout:", error);
-    } finally {
-      localStorage.removeItem("user");
-      setUser(null);
+      console.error("Error al ejecutar logoutAction:", error);
     }
   };
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = { user, loading, login, logout };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;

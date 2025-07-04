@@ -1,9 +1,11 @@
+// src/app/auth/signup/page.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
+import { signupAction } from "@/actions/auth/signup"; // Importa la Server Action de registro
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,75 +24,42 @@ export default function SignUpPage() {
   const router = useRouter();
   const { login, user } = useAuth();
 
-  const [name, setName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // Inicializa useActionState con la Server Action de registro
+  const [state, formAction, pending] = useActionState(signupAction, {
+    success: false,
+    error: null,
+    user: null,
+    message: null,
+  });
 
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-
+  // Efecto para redirigir si el usuario ya está autenticado
   useEffect(() => {
     if (user) {
       router.push("/dashboard");
     }
   }, [user, router]);
 
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    if (!name || !lastName || !username || !email || !password) {
-      setError("Todos los campos son requeridos.");
-      setLoading(false);
-      return;
+  // Efecto para manejar el resultado de la Server Action
+  useEffect(() => {
+    if (state.success) {
+      // Si la Server Action fue exitosa, actualiza el AuthContext con los datos del usuario.
+      // La Server Action ya se encargó de guardar el token en la cookie.
+      login(state.user);
+      router.push("/dashboard"); // Redirige al dashboard
     }
-
-    try {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3350";
-      const response = await fetch(`${baseUrl}/api/auth/signup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, lastName, username, email, password }),
-        credentials: "include",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Error al crear la cuenta.");
-        setLoading(false);
-        return;
-      }
-
-      if (data.user) {
-        login(data.user);
-        router.push("/dashboard");
-      } else {
-        setError("Datos de usuario incompletos recibidos tras el registro.");
-      }
-    } catch (err) {
-      console.error("Error de conexión durante el registro:", err);
-      setError("Error de conexión. Intenta nuevamente.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [state, login, router]);
 
   const handleGoogleSignup = () => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_URL;
     const frontendCallbackUrl = `${window.location.origin}/auth/callback`;
 
+    // Redirige al flujo de autenticación de Google en tu backend.
     window.location.href = `${baseUrl}/api/auth/google?frontendRedirectUrl=${encodeURIComponent(
       frontendCallbackUrl
     )}`;
   };
 
+  // No renderiza el formulario si el usuario ya está logeado
   if (user) {
     return null;
   }
@@ -107,13 +76,14 @@ export default function SignUpPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && (
+          {state.error && ( // Muestra el error si existe en el estado de la acción
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-4">
+          {/* El formulario usa la Server Action directamente a través de `action={formAction}` */}
+          <form action={formAction} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nombre</Label>
@@ -122,9 +92,7 @@ export default function SignUpPage() {
                   name="name"
                   placeholder="Juan"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
+                  disabled={pending}
                 />
               </div>
               <div className="space-y-2">
@@ -134,9 +102,7 @@ export default function SignUpPage() {
                   name="lastName"
                   placeholder="Pérez"
                   required
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  disabled={loading}
+                  disabled={pending}
                 />
               </div>
             </div>
@@ -148,9 +114,7 @@ export default function SignUpPage() {
                 name="username"
                 placeholder="juanperez"
                 required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={loading}
+                disabled={pending}
               />
             </div>
 
@@ -162,9 +126,7 @@ export default function SignUpPage() {
                 type="email"
                 placeholder="juan@email.com"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
+                disabled={pending}
               />
             </div>
 
@@ -176,14 +138,12 @@ export default function SignUpPage() {
                 type="password"
                 placeholder="••••••••"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
+                disabled={pending}
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creando cuenta..." : "Crear Cuenta"}
+            <Button type="submit" className="w-full" disabled={pending}>
+              {pending ? "Creando cuenta..." : "Crear Cuenta"}
             </Button>
           </form>
 
@@ -193,7 +153,7 @@ export default function SignUpPage() {
             variant="outline"
             className="w-full bg-transparent"
             onClick={handleGoogleSignup}
-            disabled={loading}
+            disabled={pending}
           >
             <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
               <path

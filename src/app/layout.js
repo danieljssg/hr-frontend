@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/auth-context";
 import Navbar from "@/components/shared/Navbar";
 import { ApolloWrapper } from "@/providers/ApolloWrapper";
+import { ThemeProvider } from "@/providers/theme-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,12 +18,14 @@ export default function RootLayout({ children }) {
       <body
         className={`min-h-screen bg-background text-foreground ${inter.className}`}
       >
-        <AuthProvider>
-          <ApolloWrapper>
-            <Navbar />
-            <main>{children}</main>
-          </ApolloWrapper>
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <ApolloWrapper>
+              <Navbar />
+              <main>{children}</main>
+            </ApolloWrapper>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
