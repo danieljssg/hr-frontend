@@ -15,9 +15,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="es">
-      <body
-        className={`min-h-screen bg-background text-foreground ${inter.className}`}
-      >
+      <body className={`min-h-screen  ${inter.className}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             <ApolloWrapper>
