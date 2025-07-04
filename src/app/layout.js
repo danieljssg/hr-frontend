@@ -1,7 +1,8 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/auth-context";
-import Navbar from "@/components/navbar";
+import Navbar from "@/components/shared/Navbar";
+import { ApolloWrapper } from "@/providers/ApolloWrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -13,10 +14,14 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="es">
-      <body className={inter.className}>
+      <body
+        className={`min-h-screen bg-background text-foreground ${inter.className}`}
+      >
         <AuthProvider>
-          <Navbar />
-          <main>{children}</main>
+          <ApolloWrapper>
+            <Navbar />
+            <main>{children}</main>
+          </ApolloWrapper>
         </AuthProvider>
       </body>
     </html>

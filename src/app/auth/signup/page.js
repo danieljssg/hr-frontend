@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
-import { signupAction } from "@/actions/auth";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,20 +21,66 @@ import { Separator } from "@/components/ui/separator";
 export default function SignUpPage() {
   const router = useRouter();
   const { login, user } = useAuth();
-  const [state, formAction, pending] = useActionState(signupAction, {});
+
+  const [name, setName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      router.push("/");
+      router.push("/dashboard");
     }
   }, [user, router]);
 
-  useEffect(() => {
-    if (state.success) {
-      login(state.token, state.user);
-      router.push("/");
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    if (!name || !lastName || !username || !email || !password) {
+      setError("Todos los campos son requeridos.");
+      setLoading(false);
+      return;
     }
-  }, [state, login, router]);
+
+    try {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3350";
+      const response = await fetch(`${baseUrl}/api/auth/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, lastName, username, email, password }),
+        credentials: "include",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Error al crear la cuenta.");
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        login(data.user);
+        router.push("/dashboard");
+      } else {
+        setError("Datos de usuario incompletos recibidos tras el registro.");
+      }
+    } catch (err) {
+      console.error("Error de conexión durante el registro:", err);
+      setError("Error de conexión. Intenta nuevamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoogleSignup = () => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_URL;
@@ -61,13 +107,13 @@ export default function SignUpPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {state.error && (
+          {error && (
             <Alert variant="destructive">
-              <AlertDescription>{state.error}</AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <form action={formAction} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nombre</Label>
@@ -76,7 +122,9 @@ export default function SignUpPage() {
                   name="name"
                   placeholder="Juan"
                   required
-                  disabled={pending}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -86,7 +134,9 @@ export default function SignUpPage() {
                   name="lastName"
                   placeholder="Pérez"
                   required
-                  disabled={pending}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -98,7 +148,9 @@ export default function SignUpPage() {
                 name="username"
                 placeholder="juanperez"
                 required
-                disabled={pending}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -110,7 +162,9 @@ export default function SignUpPage() {
                 type="email"
                 placeholder="juan@email.com"
                 required
-                disabled={pending}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -122,12 +176,14 @@ export default function SignUpPage() {
                 type="password"
                 placeholder="••••••••"
                 required
-                disabled={pending}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={pending}>
-              {pending ? "Creando cuenta..." : "Crear Cuenta"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creando cuenta..." : "Crear Cuenta"}
             </Button>
           </form>
 
@@ -137,7 +193,7 @@ export default function SignUpPage() {
             variant="outline"
             className="w-full bg-transparent"
             onClick={handleGoogleSignup}
-            disabled={pending}
+            disabled={loading}
           >
             <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
               <path

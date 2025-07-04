@@ -1,27 +1,24 @@
-// app/auth/callback/page.js
 "use client";
 
-import { useEffect, useRef } from "react"; // Importa useRef
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
+import { DotLoader } from "@/components/shared/DotLoader";
 
 const AuthCallbackPage = () => {
   const router = useRouter();
   const { login } = useAuth();
-  const hasProcessed = useRef(false); // Nuevo ref para controlar la ejecución
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
-    // Solo ejecuta la lógica si aún no ha sido procesada
     if (hasProcessed.current) {
       return;
     }
 
-    let token = null;
     let userData = null;
 
     if (typeof window !== "undefined" && window.location.hash) {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      token = hashParams.get("access_token");
       const userDataString = hashParams.get("user_data");
 
       if (userDataString) {
@@ -36,35 +33,21 @@ const AuthCallbackPage = () => {
       }
     }
 
-    if (token && userData) {
-      login(token, userData);
-      console.log("Token y User Data procesados. Redirigiendo...");
-      hasProcessed.current = true; // Marca como procesado
-      router.push("/");
+    if (userData) {
+      login(userData);
+      console.log("User Data procesados. Redirigiendo...");
+      hasProcessed.current = true;
+      router.push("/dashboard");
     } else {
       console.error(
-        "Faltan el token o los datos del usuario después de la autenticación."
+        "Faltan los datos del usuario después de la autenticación."
       );
-      hasProcessed.current = true; // Marca como procesado
-      router.push("/login?error=authentication_failed");
+      hasProcessed.current = true;
+      router.push("/auth/login?error=authentication_failed");
     }
-  }, [router, login]); // NO añades hasProcessed.current a las dependencias, porque un ref no es una dependencia de estado
+  }, [router, login]);
 
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        minHeight: "100vh",
-        backgroundColor: "#1a1a1a",
-        color: "#fff",
-        fontSize: "1.2rem",
-      }}
-    >
-      <p>Procesando autenticación. Por favor espera...</p>
-    </div>
-  );
+  return <DotLoader />;
 };
 
 export default AuthCallbackPage;
